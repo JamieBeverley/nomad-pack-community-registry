@@ -18,8 +18,8 @@ job "glitchtip" {
       driver = "docker"
 
       service {
-        name = "db"
-        port = "db"
+        name     = "db"
+        port     = "db"
         provider = "nomad"
       }
 
@@ -40,6 +40,29 @@ job "glitchtip" {
     }
   }
 
+  group "redis" {
+    network {
+      port "redis" {
+        to = 6379
+      }
+    }
+
+    task "redis" {
+      driver = "docker"
+
+      service {
+        name     = "redis"
+        port     = "redis"
+        provider = "nomad"
+      }
+
+      config {
+        image = "redis"
+        ports = ["redis"]
+      }
+    }
+  }
+
   group "app" {
     count = 1
     network {
@@ -55,30 +78,9 @@ job "glitchtip" {
       attempts = 0
     }
 
-
     volume "uploads" {
       type   = "host"
       source = "uploads"
-    }
-
-    task "redis" {
-      driver = "docker"
-
-      service {
-        port = "redis"
-        provider = "nomad"
-        name = "redis"
-      }
-
-      config {
-        image = "redis"
-        ports = ["redis"]
-      }
-      
-      lifecycle {
-        hook = "prestart"
-        sidecar = true
-      }
     }
 
     task "web" {
@@ -93,14 +95,20 @@ job "glitchtip" {
         # when postgres service changes, restart this task with updated addr
         # for connecting to pg
         data        = <<EOH
-        {{ range nomadService "db" }}
-        DB_HOST={{ .Address }}
-        DB_PORT={{ .Port }}
-        {{ end }}
-        {{ range nomadService "redis" }}
+        # all Services:
+        {{- range nomadServices }}
+        # - {{ .Name }}
+        {{- end }}
+
+        # db:
+        {{- range nomadService "db" }}
+        DATABASE_URL=postgres://postgres:{{ env "POSTGRES_PASSWORD" }}@{{ .Address }}:{{ .Port}}/[[ var "postgres_db" . ]]
+        {{- end }}
+        # redis:
+        {{- range nomadService "redis" }}
         REDIS_HOST={{ .Address }}
         REDIS_PORT={{ .Port }}
-        {{ end }}
+        {{- end }}
         EOH
         env         = true
         destination = "local/env.txt"
@@ -108,7 +116,7 @@ job "glitchtip" {
       }
 
       env {
-        // DATABASE_URL                      = "[[ var "database_url" . ]]"
+        POSTGRES_PASSWORD                 = "[[ var "postgres_password" .  ]]"
         DATABASE_NAME                     = "[[ var "postgres_db" . ]]"
         SECRET_KEY                        = "[[ var "secret_key" . ]]"
         PORT                              = "8000"
@@ -137,14 +145,20 @@ job "glitchtip" {
         # when postgres service changes, restart this task with updated addr
         # for connecting to pg
         data        = <<EOH
-        {{ range nomadService "db" }}
-        DB_HOST={{ .Address }}
-        DB_PORT={{ .Port }}
-        {{ end }}
-        {{ range nomadService "redis" }}
+        # all Services:
+        {{- range nomadServices }}
+        # - {{ .Name }}
+        {{- end }}
+
+        # db:
+        {{- range nomadService "db" }}
+        DATABASE_URL=postgres://postgres:{{ env "POSTGRES_PASSWORD" }}@{{ .Address }}:{{ .Port}}/[[ var "postgres_db" . ]]
+        {{- end }}
+        # redis:
+        {{- range nomadService "redis" }}
         REDIS_HOST={{ .Address }}
         REDIS_PORT={{ .Port }}
-        {{ end }}
+        {{- end }}
         EOH
         env         = true
         destination = "local/env.txt"
@@ -152,7 +166,7 @@ job "glitchtip" {
       }
 
       env {
-        // DATABASE_URL                      = "[[ var "database_url" . ]]"
+        POSTGRES_PASSWORD                 = "[[ var "postgres_password" .  ]]"
         DATABASE_NAME                     = "[[ var "postgres_db" . ]]"
         SECRET_KEY                        = "[[ var "secret_key" . ]]"
         PORT                              = "8000"
@@ -174,58 +188,56 @@ job "glitchtip" {
       }
     }
 
-    task "migrate" {
-      driver = "docker"
+    // task "migrate" {
+    //   driver = "docker"
 
-      config {
-        image   = "glitchtip/glitchtip"
-        command = "python"
-        args   = ["manage.py", "migrate"]
-      }
+    //   config {
+    //     image   = "glitchtip/glitchtip"
+    //     command = "python"
+    //     args    = ["manage.py", "migrate"]
+    //   }
 
-      template {
-        # when postgres service changes, restart this task with updated addr
-        # for connecting to pg
-        data        = <<EOH
-        {{ range nomadService "db" }}
-        DB_HOST={{ .Address }}
-        DB_PORT={{ .Port }}
-        {{ end }}
-        {{ range nomadService "redis" }}
-        REDIS_HOST={{ .Address }}
-        REDIS_PORT={{ .Port }}
-        {{ end }}
-        EOH
-        env         = true
-        destination = "local/env.txt"
-        change_mode = "restart"
-      }
+    //   template {
+    //     # when postgres service changes, restart this task with updated addr
+    //     # for connecting to pg
+    //     data        = <<EOH
+    //     # all Services:
+    //     {{- range nomadServices }}
+    //     # - {{ .Name }}
+    //     {{- end }}
 
-      env {
-        // DATABASE_URL                      = "[[ var "database_url" . ]]"
-        DATABASE_NAME                     = "[[ var "postgres_db" . ]]"
-        SECRET_KEY                        = "[[ var "secret_key" . ]]"
-        PORT                              = "8000"
-        EMAIL_URL                         = "[[ var "email_url" . ]]"
-        GLITCHTIP_DOMAIN                  = "[[ var "glitchtip_domain" . ]]"
-        DEFAULT_FROM_EMAIL                = "[[ var "default_from_email" . ]]"
-        CELERY_WORKER_AUTOSCALE           = "[[ var "celery_worker_autoscale" . ]]"
-        CELERY_WORKER_MAX_TASKS_PER_CHILD = "[[ var "celery_worker_max_tasks_per_child" . ]]"
-      }
+    //     # db:
+    //     {{- range nomadService "db" }}
+    //     DATABASE_URL=postgres://postgres:{{ env "POSTGRES_PASSWORD" }}@{{ .Address }}:{{ .Port}}/[[ var "postgres_db" . ]]
+    //     {{- end }}
+    //     # redis:
+    //     {{- range nomadService "redis" }}
+    //     REDIS_HOST={{ .Address }}
+    //     REDIS_PORT={{ .Port }}
+    //     {{- end }}
+    //     EOH
+    //     env         = true
+    //     destination = "local/env.txt"
+    //     change_mode = "restart"
+    //   }
 
-      resources {
-        cpu    = 500
-        memory = 256
-      }
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Debugging only.
-    
-
+    //   env {
+    //     POSTGRES_PASSWORD                 = "[[ var "postgres_password" .  ]]"
+    //     DATABASE_NAME                     = "[[ var "postgres_db" . ]]"
+    //     SECRET_KEY                        = "[[ var "secret_key" . ]]"
+    //     PORT                              = "8000"
+    //     EMAIL_URL                         = "[[ var "email_url" . ]]"
+    //     GLITCHTIP_DOMAIN                  = "[[ var "glitchtip_domain" . ]]"
+    //     DEFAULT_FROM_EMAIL                = "[[ var "default_from_email" . ]]"
+    //     CELERY_WORKER_AUTOSCALE           = "[[ var "celery_worker_autoscale" . ]]"
+    //     CELERY_WORKER_MAX_TASKS_PER_CHILD = "[[ var "celery_worker_max_tasks_per_child" . ]]"
+    //   }
+    // }
   }
+
+
   group "debug" {
-    
+
     volume "uploads" {
       type   = "host"
       source = "uploads"
@@ -252,12 +264,10 @@ job "glitchtip" {
         # - {{ .Name }}
         {{- end }}
 
-        # services I care about...
+        # db:
         {{- range nomadService "db" }}
-        DB_HOST={{ .Address }}
-        DB_PORT={{ .Port }}
+        DATABASE_URL=postgres://postgres:{{ env "POSTGRES_PASSWORD" }}@{{ .Address }}:{{ .Port}}/[[ var "postgres_db" . ]]
         {{- end }}
-        
         # redis:
         {{- range nomadService "redis" }}
         REDIS_HOST={{ .Address }}
@@ -265,12 +275,12 @@ job "glitchtip" {
         {{- end }}
         EOH
         env         = true
-        destination = "local/thing.txt"
+        destination = "local/env.txt"
         change_mode = "restart"
       }
 
       env {
-        // DATABASE_URL                      = "[[ var "database_url" . ]]"
+        POSTGRES_PASSWORD                 = "[[ var "postgres_password" .  ]]"
         DATABASE_NAME                     = "[[ var "postgres_db" . ]]"
         SECRET_KEY                        = "[[ var "secret_key" . ]]"
         PORT                              = "8000"

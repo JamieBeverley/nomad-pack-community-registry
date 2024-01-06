@@ -5,7 +5,7 @@ variable "postgres_password" {
 }
 
 variable "postgres_db" {
-  description = "The password for the postgres user"
+  description = "The postgres databsae name user"
   type        = string
   default     = "glitchtip"
 }

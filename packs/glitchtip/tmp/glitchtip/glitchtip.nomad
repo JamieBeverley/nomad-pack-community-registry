@@ -9,15 +9,23 @@ job "glitchtip" {
       }
     }
 
+    volume "postgres" {
+      type   = "host"
+      source = "postgres"
+    }
+
     task "postgres" {
       driver = "docker"
+
+      service {
+        name     = "db"
+        port     = "db"
+        provider = "nomad"
+      }
 
       config {
         image = "postgres:15"
         ports = ["db"]
-        volumes = [
-          "local/pg-data:/var/lib/postgresql/data"
-        ]
       }
 
       env {
@@ -30,20 +38,23 @@ job "glitchtip" {
         destination = "/var/lib/postgresql/data"
       }
     }
-
-    volume "postgres" {
-      type   = "host"
-      source = "postgres"
-    }
   }
 
-  group "redis" {
+  group "app" {
     count = 1
     network {
       port "web" {
         to = 8000
       }
+      port "redis" {
+        to = 6379
+      }
     }
+
+    restart {
+      attempts = 0
+    }
+
 
     volume "uploads" {
       type   = "host"
@@ -53,9 +64,20 @@ job "glitchtip" {
     task "redis" {
       driver = "docker"
 
+      service {
+        port     = "redis"
+        provider = "nomad"
+        name     = "redis"
+      }
+
       config {
         image = "redis"
         ports = ["redis"]
+      }
+
+      lifecycle {
+        hook    = "prestart"
+        sidecar = true
       }
     }
 
@@ -71,12 +93,17 @@ job "glitchtip" {
         # when postgres service changes, restart this task with updated addr
         # for connecting to pg
         data        = <<EOH
-        {{ range nomadService "postgres" }}
+        {{ range nomadService "db" }}
         DB_HOST={{ .Address }}
         DB_PORT={{ .Port }}
         {{ end }}
+        {{ range nomadService "redis" }}
+        REDIS_HOST={{ .Address }}
+        REDIS_PORT={{ .Port }}
+        {{ end }}
         EOH
         env         = true
+        destination = "local/env.txt"
         change_mode = "restart"
       }
 
@@ -85,9 +112,9 @@ job "glitchtip" {
         DATABASE_NAME                     = "glitchtip"
         SECRET_KEY                        = "change_me"
         PORT                              = "8000"
-        EMAIL_URL                         = ""
-        GLITCHTIP_DOMAIN                  = ""
-        DEFAULT_FROM_EMAIL                = ""
+        EMAIL_URL                         = "smtp://localhost:25"
+        GLITCHTIP_DOMAIN                  = "http://localhost"
+        DEFAULT_FROM_EMAIL                = "admin@example.com"
         CELERY_WORKER_AUTOSCALE           = "1,3"
         CELERY_WORKER_MAX_TASKS_PER_CHILD = "1000"
       }
@@ -110,12 +137,17 @@ job "glitchtip" {
         # when postgres service changes, restart this task with updated addr
         # for connecting to pg
         data        = <<EOH
-          {{ range nomadService "postgres" }}
-          DB_HOST={{ .Address }}
-          DB_PORT={{ .Port }}
-          {{ end }}
-          EOH
+        {{ range nomadService "db" }}
+        DB_HOST={{ .Address }}
+        DB_PORT={{ .Port }}
+        {{ end }}
+        {{ range nomadService "redis" }}
+        REDIS_HOST={{ .Address }}
+        REDIS_PORT={{ .Port }}
+        {{ end }}
+        EOH
         env         = true
+        destination = "local/env.txt"
         change_mode = "restart"
       }
 
@@ -124,9 +156,9 @@ job "glitchtip" {
         DATABASE_NAME                     = "glitchtip"
         SECRET_KEY                        = "change_me"
         PORT                              = "8000"
-        EMAIL_URL                         = ""
-        GLITCHTIP_DOMAIN                  = ""
-        DEFAULT_FROM_EMAIL                = ""
+        EMAIL_URL                         = "smtp://localhost:25"
+        GLITCHTIP_DOMAIN                  = "http://localhost"
+        DEFAULT_FROM_EMAIL                = "admin@example.com"
         CELERY_WORKER_AUTOSCALE           = "1,3"
         CELERY_WORKER_MAX_TASKS_PER_CHILD = "1000"
       }
@@ -142,43 +174,119 @@ job "glitchtip" {
       }
     }
 
-    task "migrate" {
+    // task "migrate" {
+    //   driver = "docker"
+
+    //   config {
+    //     image   = "glitchtip/glitchtip"
+    //     command = "python"
+    //     args   = ["manage.py", "migrate"]
+    //   }
+
+    //   template {
+    //     # when postgres service changes, restart this task with updated addr
+    //     # for connecting to pg
+    //     data        = <<EOH
+    //     {{ range nomadService "db" }}
+    //     DB_HOST={{ .Address }}
+    //     DB_PORT={{ .Port }}
+    //     {{ end }}
+    //     {{ range nomadService "redis" }}
+    //     REDIS_HOST={{ .Address }}
+    //     REDIS_PORT={{ .Port }}
+    //     {{ end }}
+    //     EOH
+    //     env         = true
+    //     destination = "local/env.txt"
+    //     change_mode = "restart"
+    //   }
+
+    //   env {
+    //     // DATABASE_URL                      = ""
+    //     DATABASE_NAME                     = "glitchtip"
+    //     SECRET_KEY                        = "change_me"
+    //     PORT                              = "8000"
+    //     EMAIL_URL                         = "smtp://localhost:25"
+    //     GLITCHTIP_DOMAIN                  = "http://localhost"
+    //     DEFAULT_FROM_EMAIL                = "admin@example.com"
+    //     CELERY_WORKER_AUTOSCALE           = "1,3"
+    //     CELERY_WORKER_MAX_TASKS_PER_CHILD = "1000"
+    //   }
+
+    //   resources {
+    //     cpu    = 500
+    //     memory = 256
+    //   }
+    // }
+  }
+
+
+  group "debug" {
+
+    volume "uploads" {
+      type   = "host"
+      source = "uploads"
+    }
+
+    task "shell" {
       driver = "docker"
 
       config {
         image   = "glitchtip/glitchtip"
-        command = "./manage.py migrate"
+        command = "bash"
+        args = [
+          "-c",
+          "while true; do sleep 10000; done"
+        ]
       }
 
       template {
         # when postgres service changes, restart this task with updated addr
         # for connecting to pg
         data        = <<EOH
-        {{ range nomadService "postgres" }}
-        DB_HOST={{ .Address }}
-        DB_PORT={{ .Port }}
-        {{ end }}
+        # all Services:
+        {{- range nomadServices }}
+        # - {{ .Name }}
+        {{- end }}
+
+        # services I care about...
+        {{- range nomadService "db" }}
+        # DB_HOST={{ .Address }}
+        # DB_PORT={{ .Port }}
+        DATABASE_URL=postgres://postgres:change_me@{{ .Address }}:{{ .Port}}/glitchtip
+        {{- end }}
+        # redis:
+        {{- range nomadService "redis" }}
+        REDIS_HOST={{ .Address }}
+        REDIS_PORT={{ .Port }}
+        {{- end }}
         EOH
         env         = true
+        destination = "local/thing.txt"
         change_mode = "restart"
       }
 
       env {
         // DATABASE_URL                      = ""
-        DATABASE_NAME                     = "glitchtip"
+        // DATABASE_NAME                     = "glitchtip"
         SECRET_KEY                        = "change_me"
         PORT                              = "8000"
-        EMAIL_URL                         = ""
-        GLITCHTIP_DOMAIN                  = ""
-        DEFAULT_FROM_EMAIL                = ""
+        EMAIL_URL                         = "smtp://localhost:25"
+        GLITCHTIP_DOMAIN                  = "http://localhost"
+        DEFAULT_FROM_EMAIL                = "admin@example.com"
         CELERY_WORKER_AUTOSCALE           = "1,3"
         CELERY_WORKER_MAX_TASKS_PER_CHILD = "1000"
       }
+
       resources {
         cpu    = 500
         memory = 256
       }
-    }
 
+      volume_mount {
+        volume      = "uploads"
+        destination = "/code/uploads"
+      }
+    }
   }
 }
