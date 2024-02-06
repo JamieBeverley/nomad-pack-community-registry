@@ -1,11 +1,18 @@
 job "glitchtip" {
   datacenters = ["dc1"]
 
-  group "postgres" {
+  group "app" {
 
     network {
+      mode = "host"
       port "db" {
         to = 5432
+      }
+      port "redis" {
+        to = 6379
+      }
+      port "web" {
+        to = 8000
       }
     }
 
@@ -14,8 +21,18 @@ job "glitchtip" {
       source = "postgres"
     }
 
+    volume "uploads" {
+      type   = "host"
+      source = "uploads"
+    }
+
     task "postgres" {
       driver = "docker"
+
+      lifecycle {
+        hook    = "prestart"
+        sidecar = true
+      }
 
       service {
         name     = "db"
@@ -38,14 +55,6 @@ job "glitchtip" {
         destination = "/var/lib/postgresql/data"
       }
     }
-  }
-
-  group "redis" {
-    network {
-      port "redis" {
-        to = 6379
-      }
-    }
 
     task "redis" {
       driver = "docker"
@@ -60,27 +69,6 @@ job "glitchtip" {
         image = "redis"
         ports = ["redis"]
       }
-    }
-  }
-
-  group "app" {
-    count = 1
-    network {
-      port "web" {
-        to = 8000
-      }
-      port "redis" {
-        to = 6379
-      }
-    }
-
-    restart {
-      attempts = 0
-    }
-
-    volume "uploads" {
-      type   = "host"
-      source = "uploads"
     }
 
     task "web" {
@@ -177,10 +165,10 @@ job "glitchtip" {
         CELERY_WORKER_MAX_TASKS_PER_CHILD = "[[ var "celery_worker_max_tasks_per_child" . ]]"
       }
 
-      resources {
-        cpu    = 500
-        memory = 256
-      }
+      // resources {
+      //   cpu    = 250
+      //   memory = 512
+      // }
 
       volume_mount {
         volume      = "uploads"
@@ -188,59 +176,55 @@ job "glitchtip" {
       }
     }
 
-    // task "migrate" {
-    //   driver = "docker"
+    task "migrate" {
+      driver = "docker"
 
-    //   config {
-    //     image   = "glitchtip/glitchtip"
-    //     command = "python"
-    //     args    = ["manage.py", "migrate"]
-    //   }
+      lifecycle {
+        hook    = "prestart"
+        sidecar = false
+      }
 
-    //   template {
-    //     # when postgres service changes, restart this task with updated addr
-    //     # for connecting to pg
-    //     data        = <<EOH
-    //     # all Services:
-    //     {{- range nomadServices }}
-    //     # - {{ .Name }}
-    //     {{- end }}
+      config {
+        image   = "glitchtip/glitchtip"
+        command = "python"
+        args    = ["manage.py", "migrate"]
+      }
 
-    //     # db:
-    //     {{- range nomadService "db" }}
-    //     DATABASE_URL=postgres://postgres:{{ env "POSTGRES_PASSWORD" }}@{{ .Address }}:{{ .Port}}/[[ var "postgres_db" . ]]
-    //     {{- end }}
-    //     # redis:
-    //     {{- range nomadService "redis" }}
-    //     REDIS_HOST={{ .Address }}
-    //     REDIS_PORT={{ .Port }}
-    //     {{- end }}
-    //     EOH
-    //     env         = true
-    //     destination = "local/env.txt"
-    //     change_mode = "restart"
-    //   }
+      template {
+        # when postgres service changes, restart this task with updated addr
+        # for connecting to pg
+        data        = <<EOH
+        # all Services:
+        {{- range nomadServices }}
+        # - {{ .Name }}
+        {{- end }}
 
-    //   env {
-    //     POSTGRES_PASSWORD                 = "[[ var "postgres_password" .  ]]"
-    //     DATABASE_NAME                     = "[[ var "postgres_db" . ]]"
-    //     SECRET_KEY                        = "[[ var "secret_key" . ]]"
-    //     PORT                              = "8000"
-    //     EMAIL_URL                         = "[[ var "email_url" . ]]"
-    //     GLITCHTIP_DOMAIN                  = "[[ var "glitchtip_domain" . ]]"
-    //     DEFAULT_FROM_EMAIL                = "[[ var "default_from_email" . ]]"
-    //     CELERY_WORKER_AUTOSCALE           = "[[ var "celery_worker_autoscale" . ]]"
-    //     CELERY_WORKER_MAX_TASKS_PER_CHILD = "[[ var "celery_worker_max_tasks_per_child" . ]]"
-    //   }
-    // }
-  }
+        # db:
+        {{- range nomadService "db" }}
+        DATABASE_URL=postgres://postgres:{{ env "POSTGRES_PASSWORD" }}@{{ .Address }}:{{ .Port}}/[[ var "postgres_db" . ]]
+        {{- end }}
+        # redis:
+        {{- range nomadService "redis" }}
+        REDIS_HOST={{ .Address }}
+        REDIS_PORT={{ .Port }}
+        {{- end }}
+        EOH
+        env         = true
+        destination = "local/env.txt"
+        change_mode = "restart"
+      }
 
-
-  group "debug" {
-
-    volume "uploads" {
-      type   = "host"
-      source = "uploads"
+      env {
+        POSTGRES_PASSWORD                 = "[[ var "postgres_password" .  ]]"
+        DATABASE_NAME                     = "[[ var "postgres_db" . ]]"
+        SECRET_KEY                        = "[[ var "secret_key" . ]]"
+        PORT                              = "8000"
+        EMAIL_URL                         = "[[ var "email_url" . ]]"
+        GLITCHTIP_DOMAIN                  = "[[ var "glitchtip_domain" . ]]"
+        DEFAULT_FROM_EMAIL                = "[[ var "default_from_email" . ]]"
+        CELERY_WORKER_AUTOSCALE           = "[[ var "celery_worker_autoscale" . ]]"
+        CELERY_WORKER_MAX_TASKS_PER_CHILD = "[[ var "celery_worker_max_tasks_per_child" . ]]"
+      }
     }
 
     task "shell" {
@@ -291,10 +275,10 @@ job "glitchtip" {
         CELERY_WORKER_MAX_TASKS_PER_CHILD = "[[ var "celery_worker_max_tasks_per_child" . ]]"
       }
 
-      resources {
-        cpu    = 500
-        memory = 256
-      }
+      // resources {
+      //   cpu    = 500
+      //   memory = 256
+      // }
 
       volume_mount {
         volume      = "uploads"
@@ -302,4 +286,5 @@ job "glitchtip" {
       }
     }
   }
+
 }
