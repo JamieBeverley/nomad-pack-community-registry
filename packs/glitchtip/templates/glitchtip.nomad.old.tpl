@@ -7,26 +7,7 @@ job [[ template "job_name" . ]] {
     count = [[ var "count" . ]]
 
     network {
-      port "http" {
-        to = 8000
-      }
     }
-
-    [[ if var "register_service" . ]]
-    service {
-      name = "[[ var "service_name" . ]]"
-      tags = [[ var "service_tags" . | toStringList ]]
-      provider = "nomad"
-      port = "http"
-      check {
-        name     = "alive"
-        type     = "http"
-        path     = "/"
-        interval = "10s"
-        timeout  = "2s"
-      }
-    }
-    [[ end ]]
 
     restart {
       attempts = 2
@@ -35,11 +16,11 @@ job [[ template "job_name" . ]] {
       mode = "fail"
     }
 
-    task "server" {
+    task "nginx" {
       driver = "docker"
 
       config {
-        image = "mnomitch/hello_world_server"
+        image = "nginx"
         ports = ["http"]
       }
 

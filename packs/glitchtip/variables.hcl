@@ -32,8 +32,9 @@ variable "secret_key"{
 variable "email_url"{
   description = "email_url"
   type = string
-  default = "smtp://localhost:25"
+  default = "smtp://localhost:8080"
 }
+
 variable "glitchtip_domain"{
   description = "glitchtip_domain"
   type = string
