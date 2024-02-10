@@ -24,7 +24,7 @@ variable "count" {
 }
 
 variable "register_service" {
-  description = "If you want to register a Nomad service for the job"
+  description = "If you want to register a Nomad service for the Django application"
   type        = bool
   default     = true
 }
@@ -44,13 +44,13 @@ variable "service_tags" {
 
 # django sepcific
 variable "migration_poll_seconds" {
-  description = "The number of seconds to wait between polls for the leader alloc to complete running migrations"
+  description = "The number of seconds to wait between polls for the 0th alloc to complete running migrations"
   type        = number
   default     = 5
 }
 
 variable "migration_poll_iters" {
-  description = "The number of iterations to wait for the leader alloc to complete running migrations. If migrations still have not completed, the prestart migration task will fail for the= allocation."
+  description = "The number of iterations to wait for the leader alloc to complete running migrations. If migrations still have not completed, the prestart migration task will fail for the allocation."
   type        = number
   default     = 5
 }

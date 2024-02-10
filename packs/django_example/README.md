@@ -1,40 +1,29 @@
 # django_example
 
-<!-- Include a brief description of your pack -->
+Example pack for running a Django app via the `docker` driver. Database
+migrations are run as a `prestart` task prior to the web server.
 
-This pack is a simple Nomad job that runs as a service and can be accessed via
-HTTP.
+Requires `django_image` variable to be defined which indicates a docker image of
+the Django app. There are 2 requirements/expectations of this image:
+1. The image's `WORKDIR` should be the root of the Django app
+2. The image's `CMD` should launch the webserver (e.g. via `gunicorn` or some
+   other asgi/wsgi server)
 
-## Pack Usage
-
-<!-- Include information about how to use your pack -->
-
-### Changing the Message
-
-To change the message this server responds with, change the "message" variable
-when running the pack.
-
-```
-nomad-pack run django_example --var message="Hola Mundo!"
-```
-
-This tells Nomad Pack to tweak the `MESSAGE` environment variable that the
-service reads from.
+## How Migrations Are Handled
+- `./manage.py migrate` should be run prior to the app starting up, these is 
+  achieved via `prestart = true`
+- When multiple allocations are requested (`count>1`) only one allocation should
+  attempt to run migrations (it might be okay if multiple allocations try to 
+  migrate around the same time - database transactions should keep theses safe
+  but it would be a bit ugly).
+- To achieve this:
+  - if `NOMAD_ALLOC_INDEX=0` the prestart task will run `./manage.py migrate`
+  - otherwise, the prestart task will check every `migration_poll_seconds` if
+    migrations have been applied yet up to a maximum of `migration_poll_iters`
+    attempts before failing.
 
 ## Variables
 
-<!-- Include information on the variables from your pack -->
-
-- `message` (string:"Hello World!") - The message your application will respond with
-- `count` (number:2) - The number of app instances to deploy
-- `job_name` (string) - The name to use as the job name which overrides using
-  the pack name
-- `datacenters` (list of strings:["*"]) - A list of datacenters in the region which
-  are eligible for task placement
-- `region` (string) - The region where jobs will be deployed
-- `register_service` (bool: true) - If you want to register a Nomad service
-  for the job
-- `service_tags` (list of string) - The service tags for the django_example application
-- `service_name` (string) - The service name for the django_example application
+Please see `variables.hcl` for details.
 
 [pack-registry]: https://github.com/hashicorp/nomad-pack-community-registry

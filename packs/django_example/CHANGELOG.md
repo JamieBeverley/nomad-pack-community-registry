@@ -1,3 +1,3 @@
-## Version v0.0.1 (Unreleased)
+## Version v0.0.1
 
-Initial Release
+Initial Release.
