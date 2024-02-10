@@ -1,1 +1,3 @@
-Congrats! You deployed the django_example pack on Nomad.
+Django app from [[ var "django_image" . ]] has been deployed to Nomad
+Instances: [[ var "count" . ]]
+Migrations will be run from the allocation with NOMAD_ALLOC_INDEX=0
