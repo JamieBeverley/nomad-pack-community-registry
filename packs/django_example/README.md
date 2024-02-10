@@ -9,6 +9,10 @@ the Django app. There are 2 requirements/expectations of this image:
 2. The image's `CMD` should launch the webserver (e.g. via `gunicorn` or some
    other asgi/wsgi server)
 
+## Dependencies
+- Presently assumes database is run externally
+- Requires docker driver
+
 ## How Migrations Are Handled
 - `./manage.py migrate` should be run prior to the app starting up, these is 
   achieved via `prestart = true`
