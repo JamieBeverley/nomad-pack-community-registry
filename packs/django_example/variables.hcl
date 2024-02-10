@@ -23,10 +23,9 @@ variable "count" {
   default     = 2
 }
 
-variable "message" {
-  description = "The message your application will render"
+variable "django_image" {
+  description = "Docker image for the django_example application. manage.py should be in the root of the image"
   type        = string
-  default     = "Hello World!"
 }
 
 variable "register_service" {
@@ -44,14 +43,5 @@ variable "service_name" {
 variable "service_tags" {
   description = "The service tags for the django_example application"
   type        = list(string)
-  # The default value is shaped to integrate with Traefik
-  # This routes at the root path "/", to route to this service from
-  # another path, change "urlprefix-/" to "urlprefix-/<PATH>" and
-  # "traefik.http.routers.http.rule=Path(∫/∫)" to
-  # "traefik.http.routers.http.rule=Path(∫/<PATH>∫)"
-  default = [
-    "urlprefix-/",
-    "traefik.enable=true",
-    "traefik.http.routers.http.rule=Path(`/`)",
-  ]
+  default = []
 }
