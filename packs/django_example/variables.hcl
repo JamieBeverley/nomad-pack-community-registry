@@ -32,7 +32,7 @@ variable "register_service" {
 variable "service_name" {
   description = "The service name for the django_example application"
   type        = string
-  default     = "webapp"
+  default     = "djangoapp"
 }
 
 variable "service_tags" {
@@ -41,6 +41,17 @@ variable "service_tags" {
   default = []
 }
 
+variable "service_check" {
+  description = "The service check for the django_example application"
+  type        = map(string)
+  default     = null
+}
+
+variable "http_service" {
+  description = "If true, the service check will be an HTTP check"
+  type        = map(string)
+  default     = null
+}
 
 # django sepcific
 variable "migration_poll_seconds" {
@@ -70,4 +81,23 @@ variable "env_vars" {
   type = map(string)
   description = "A map of environment variables to set in the container"
   default = {}
+}
+
+
+variable "server_resources" {
+  description = "The resources to allocate to the server"
+  type        = object({cpu=number, memory=number})
+  default     = {
+    cpu    = 100
+    memory = 300
+  }
+}
+
+variable "migrate_resources" {
+  description = "The resources to allocate to the server"
+  type        = object({cpu=number, memory=number})
+  default     = {
+    cpu    = 100
+    memory = 300
+  }
 }

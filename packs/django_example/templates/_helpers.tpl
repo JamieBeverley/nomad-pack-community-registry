@@ -112,17 +112,15 @@ template.
       }
 [[- end ]]
 
+
 [[- /*
-
-## `env_vars` helper
-
-This helper formats maps as key and quoted value pairs.
-
+## `expand_map` helper
+Format maps as key and quoted value pairs.
 */ -]]
 
-[[ define "env_vars" -]]
-        [[- range $idx, $var := . ]]
-        [[ $var.key ]] = [[ $var.value | quote ]]
+[[ define "expand_map" -]]
+        [[- range $key, $val := . ]]
+        [[ $key ]] = [[ $val | quote ]]
         [[- end ]]
 [[- end ]]
 

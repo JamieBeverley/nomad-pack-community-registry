@@ -1,36 +1,36 @@
-job [[ template "job_name" . ]] {
-[[ template "region" . ]]
-datacenters = [[ var "datacenters" . | toStringList ]]
-type        = "service"
+job "django_example" {
+
+  datacenters = ["*"]
+  type        = "service"
 
   group "app" {
-    count = [[ var "count" . ]]
+    count = 5
 
     network {
       mode = "host"
       port "http" {
-        to = [[ var "port" . ]]
+        to = 8000
       }
     }
 
-    [[ if var "http_service" . ]]
-    [[ template "service" (var "http_service" .) ]]
-    [[ end ]]
 
-    [[ if var "register_service" . ]]
     service {
-      name     = "[[ var "service_name" . ]]"
-      tags     = [[ var "service_tags" . | toStringList ]]
+      name     = "webapp"
+      tags     = []
       provider = "nomad"
       port     = "http"
 
-      [[ if var "service_check" . ]]
-      check {
-        [[ template "expand_map" (var "service_check" .)]]
+
+      check = {
+
+        interval = "10s"
+        path     = "/"
+        timeout  = "5s"
+        type     = "http"
       }
-      [[ end ]]
+
     }
-    [[ end ]]
+
 
     restart {
       attempts = 2
@@ -48,11 +48,18 @@ type        = "service"
       }
 
       env {
-        [[ template "expand_map" (var "env_vars" .) ]]
+
+        DEBUG             = "off"
+        POSTGRES_HOST     = "10.0.0.225"
+        POSTGRES_NAME     = "testdb"
+        POSTGRES_PASSWORD = "password"
+        POSTGRES_PORT     = "5432"
+        POSTGRES_USER     = "postgres"
+        test              = "1234"
       }
 
       config {
-        image   = "[[ var "django_image" . ]]"
+        image   = "localhost:5000/djangotesting:3"
         command = "/django_migration/nomad_wait_for_migration.sh"
         mount {
           type   = "bind"
@@ -68,8 +75,8 @@ type        = "service"
         data        = <<EOF
 #!/bin/bash
 
-RETRIES=[[ var "migration_poll_iters" . ]]
-WAIT_SECONDS=[[ var "migration_poll_seconds" . ]]
+RETRIES=5
+WAIT_SECONDS=5
 
 check_migration() {
     ./manage.py migrate --check
@@ -111,24 +118,32 @@ else
 fi
 EOF
       }
-
-      [[ template "resources" (var "server_resources" . ) ]]
-
     }
 
     task "server" {
       driver = "docker"
 
       env {
-        [[ template "expand_map" (var "env_vars" .) ]]
+
+        DEBUG             = "off"
+        POSTGRES_HOST     = "10.0.0.225"
+        POSTGRES_NAME     = "testdb"
+        POSTGRES_PASSWORD = "password"
+        POSTGRES_PORT     = "5432"
+        POSTGRES_USER     = "postgres"
+        test              = "1234"
       }
 
       config {
-        image = "[[ var "django_image" . ]]"
+        image = "localhost:5000/djangotesting:3"
         ports = ["http"]
       }
 
-      [[ template "resources" (var "server_resources" . ) ]]
+
+      resources {
+        cpu    = 100
+        memory = 300
+      }
     }
   }
 }

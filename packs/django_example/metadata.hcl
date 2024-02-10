@@ -1,6 +1,6 @@
 app {
   url = "https://www.djangoproject.com/"
-  authors = ["Django Software Foundation"]
+  author = "Django Software Foundation"
 }
 
 pack {
