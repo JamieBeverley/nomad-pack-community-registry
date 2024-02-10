@@ -9,7 +9,7 @@ group "app" {
   network {
     mode = "host"
     port "http" {
-      to = 8000
+      to = [[ var "port" . ]]
     }
   }
 
@@ -67,8 +67,8 @@ group "app" {
       data        = <<EOF
 #!/bin/bash
 
-RETRIES=4
-WAIT_SECONDS=5
+RETRIES=[[ var "migration_poll_iters" . ]]
+WAIT_SECONDS=[[ var "migration_poll_seconds" . ]]
 
 check_migration() {
     ./manage.py migrate --check

@@ -20,7 +20,7 @@ variable "datacenters" {
 variable "count" {
   description = "The number of app instances to deploy"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "register_service" {
@@ -43,6 +43,24 @@ variable "service_tags" {
 
 
 # django sepcific
+variable "migration_poll_seconds" {
+  description = "The number of seconds to wait between polls for the leader alloc to complete running migrations"
+  type        = number
+  default     = 5
+}
+
+variable "migration_poll_iters" {
+  description = "The number of iterations to wait for the leader alloc to complete running migrations. If migrations still have not completed, the prestart migration task will fail for the= allocation."
+  type        = number
+  default     = 5
+}
+
+variable "port" {
+  description = "The port the django_image container listens on"
+  type        = number
+  default     = 8000
+}
+
 variable "django_image" {
   description = "Docker image for the django_example application. manage.py should be in the root of the image"
   type        = string
@@ -50,5 +68,6 @@ variable "django_image" {
 
 variable "env_vars" {
   type = map(string)
+  description = "A map of environment variables to set in the container"
   default = {}
 }
