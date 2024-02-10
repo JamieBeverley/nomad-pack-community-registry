@@ -1,3 +1,6 @@
+
+# ------------------------------------------------------------------------------
+# Job related ------------------------------------------------------------------
 variable "job_name" {
   # If "", the pack name will be used
   description = "The name to use as the job name which overrides using the pack name"
@@ -17,43 +20,8 @@ variable "datacenters" {
   default     = ["*"]
 }
 
-variable "count" {
-  description = "The number of app instances to deploy"
-  type        = number
-  default     = 1
-}
-
-variable "register_service" {
-  description = "If you want to register a Nomad service for the Django application"
-  type        = bool
-  default     = true
-}
-
-variable "service_name" {
-  description = "The service name for the django_example application"
-  type        = string
-  default     = "djangoapp"
-}
-
-variable "service_tags" {
-  description = "The service tags for the django_example application"
-  type        = list(string)
-  default = []
-}
-
-variable "service_check" {
-  description = "The service check for the django_example application"
-  type        = map(string)
-  default     = null
-}
-
-variable "http_service" {
-  description = "If true, the service check will be an HTTP check"
-  type        = map(string)
-  default     = null
-}
-
-# django sepcific
+# ------------------------------------------------------------------------------
+# Migration lifecycle related --------------------------------------------------
 variable "migration_poll_seconds" {
   description = "The number of seconds to wait between polls for the 0th alloc to complete running migrations"
   type        = number
@@ -66,12 +34,42 @@ variable "migration_poll_iters" {
   default     = 5
 }
 
+# ------------------------------------------------------------------------------
+# Networking -------------------------------------------------------------------
 variable "port" {
   description = "The port the django_image container listens on"
   type        = number
   default     = 8000
 }
 
+
+variable "service_port_label" {
+  description = "The port label for the web app port"
+  type        = string
+  default     = "http"
+}
+
+variable "http_service" {
+  description = "Configuration for the application service."
+  type = object({
+    service_name       = string
+    service_tags       = list(string)
+    service_provider   = string
+    check_enabled      = bool
+    check_type         = string
+    check_path         = string
+    check_interval     = string
+    check_timeout      = string
+    upstreams = list(object({
+      name = string
+      port = number
+    }))
+  })
+  default = null
+}
+
+# ------------------------------------------------------------------------------
+# Docker -----------------------------------------------------------------------
 variable "django_image" {
   description = "Docker image for the django_example application. manage.py should be in the root of the image"
   type        = string
@@ -83,6 +81,13 @@ variable "env_vars" {
   default = {}
 }
 
+# ------------------------------------------------------------------------------
+# Resources/allocations --------------------------------------------------------
+variable "count" {
+  description = "The number of app instances to deploy"
+  type        = number
+  default     = 1
+}
 
 variable "server_resources" {
   description = "The resources to allocate to the server"

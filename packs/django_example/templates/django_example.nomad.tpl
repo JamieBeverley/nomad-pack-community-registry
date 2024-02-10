@@ -1,36 +1,52 @@
 job [[ template "job_name" . ]] {
-[[ template "region" . ]]
-datacenters = [[ var "datacenters" . | toStringList ]]
-type        = "service"
+  [[ template "region" . ]]
+  datacenters = [[ var "datacenters" . | toStringList ]]
+  type        = "service"
 
   group "app" {
     count = [[ var "count" . ]]
 
     network {
       mode = "host"
-      port "http" {
+      port [[ var "service_port_label" .  | quote ]] {
         to = [[ var "port" . ]]
       }
     }
 
-    [[ if var "http_service" . ]]
-    [[ template "service" (var "http_service" .) ]]
-    [[ end ]]
-
-    [[ if var "register_service" . ]]
+    [[- if var "http_service" . ]]
+    [[ $service := var "http_service" . ]]
     service {
-      name     = "[[ var "service_name" . ]]"
-      tags     = [[ var "service_tags" . | toStringList ]]
-      provider = "nomad"
-      port     = "http"
-
-      [[ if var "service_check" . ]]
-      check {
-        [[ template "expand_map" (var "service_check" .)]]
+        name = [[ $service.service_name | quote ]]
+        port = [[ var "service_port_label" .  | quote ]]
+        tags = [[ $service.service_tags | toStringList ]]
+        provider = [[ $service.service_provider | quote ]]
+        [[- if $service.upstreams ]]
+        connect {
+          sidecar_service {
+            proxy {
+              [[- range $upstream := $service.upstreams ]]
+              upstreams {
+                destination_name = [[ $upstream.name | quote ]]
+                local_bind_port  = [[ $upstream.port ]]
+              }
+              [[- end ]]
+            }
+          }
+        }
+        [[- end ]]
+        
+        [[- if $service.check_enabled ]]
+        check {
+          type     = [[ $service.check_type | quote ]]
+          [[- if $service.check_path]]
+          path     = [[ $service.check_path | quote ]]
+          [[- end ]]
+          interval = [[ $service.check_interval | quote ]]
+          timeout  = [[ $service.check_timeout | quote ]]
+        }
+        [[- end]]
       }
-      [[ end ]]
-    }
-    [[ end ]]
+    [[- end ]]
 
     restart {
       attempts = 2
