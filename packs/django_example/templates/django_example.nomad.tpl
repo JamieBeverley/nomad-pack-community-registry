@@ -44,10 +44,26 @@ group "app" {
       sidecar = false
     }
 
+    env {
+      [[- range $key, $val := var "env_vars" . ]]
+      [[ $key ]] = [[ $val | quote ]]
+      [[- end ]]
+    }
+
+    config {
+      image = "[[ var "django_image" . ]]"
+      command = "/django_migration/nomad_wait_for_migration.sh"
+      mount {
+        type   = "bind"
+        source = "local"
+        target = "/django_migration"
+      }
+    }
+
     template {
       destination = "local/nomad_wait_for_migration.sh"
       change_mode = "noop"
-      perms="0755"
+      perms       = "0755"
       data        = <<EOF
 #!/bin/bash
 
@@ -75,36 +91,35 @@ wait_for_migrations(){
           exit 0
       fi
   done
+  echo "Migrations not applied after $RETRIES retries. Exiting..."
+  exit 1
 }
 
 apply_migrations(){
   ./manage.py migrate
+  exit 0
 }
 
+echo "NOMAD_ALLOC_INDEX: $NOMAD_ALLOC_INDEX"
 if [ $NOMAD_ALLOC_INDEX -eq 0 ]; then
+  echo "Index is 0. Applying migrations..."
   apply_migrations
 else
+  echo "Index is not 0. Waiting for leader alloc to apply migrations..."
   wait_for_migrations
 fi
-
-echo "Migration checks failed $RETRIES times. Exiting..."
-exit 1
 EOF
-    }
-
-    config {
-      image = "[[ var "django_image" . ]]"
-      // command = "/django_migration/nomad_wait_for_migration.sh"
-      mount {
-        type   = "bind"
-        source = "local"
-        target = "/django_migration"
-      }
     }
   }
 
   task "runserver" {
     driver = "docker"
+    
+    env {
+      [[- range $key, $val := var "env_vars" . ]]
+      [[ $key ]] = [[ $val | quote ]]
+      [[- end ]]
+    }
 
     config {
       image = "[[ var "django_image" . ]]"

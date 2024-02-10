@@ -23,11 +23,6 @@ variable "count" {
   default     = 2
 }
 
-variable "django_image" {
-  description = "Docker image for the django_example application. manage.py should be in the root of the image"
-  type        = string
-}
-
 variable "register_service" {
   description = "If you want to register a Nomad service for the job"
   type        = bool
@@ -44,4 +39,16 @@ variable "service_tags" {
   description = "The service tags for the django_example application"
   type        = list(string)
   default = []
+}
+
+
+# django sepcific
+variable "django_image" {
+  description = "Docker image for the django_example application. manage.py should be in the root of the image"
+  type        = string
+}
+
+variable "env_vars" {
+  type = map(string)
+  default = {}
 }
