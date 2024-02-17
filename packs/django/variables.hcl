@@ -71,7 +71,7 @@ variable "http_service" {
 # ------------------------------------------------------------------------------
 # Docker -----------------------------------------------------------------------
 variable "django_image" {
-  description = "Docker image for the django application. manage.py should be in the root of the image"
+  description = "Docker image for the django application. manage.py should be in the root WORKDIR of the image"
   type        = string
 }
 
