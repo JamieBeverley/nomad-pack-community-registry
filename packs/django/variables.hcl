@@ -81,6 +81,12 @@ variable "env_vars" {
   default = {}
 }
 
+variable "docker_network_mode" {
+  type = string
+  description = "Docker network mode. See docker driver config 'network_mode' for details"
+  default = null
+}
+
 # ------------------------------------------------------------------------------
 # Resources/allocations --------------------------------------------------------
 variable "count" {

@@ -7,7 +7,6 @@ job [[ template "job_name" . ]] {
     count = [[ var "count" . ]]
 
     network {
-      mode = "host"
       port [[ var "service_port_label" .  | quote ]] {
         to = [[ var "port" . ]]
       }
@@ -68,6 +67,9 @@ job [[ template "job_name" . ]] {
       }
 
       config {
+        [[- if var "docker_network_mode" . ]]
+        network_mode = [[ var "docker_network_mode" . | quote]]
+        [[- end ]]
         image   = "[[ var "django_image" . ]]"
         command = "/django_migration/nomad_wait_for_migration.sh"
         mount {
@@ -114,7 +116,7 @@ wait_for_migrations(){
 
 apply_migrations(){
   ./manage.py migrate
-  exit 0
+  exit $?
 }
 
 echo "NOMAD_ALLOC_INDEX: $NOMAD_ALLOC_INDEX"
